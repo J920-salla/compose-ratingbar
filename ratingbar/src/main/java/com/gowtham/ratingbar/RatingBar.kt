@@ -83,8 +83,8 @@ internal fun RatingBar(
     style: RatingBarStyle = RatingBarStyle.Default,
     painterEmpty: Painter? = null,
     painterFilled: Painter? = null,
-    onValueChange: (Float) -> Unit,
-    onRatingChanged: (Float) -> Unit
+    onValueChange: ((Float) -> Unit)? = null,
+    onRatingChanged: ((Float) -> Unit)? = null
 ) {
     var rowSize by remember { mutableStateOf(Size.Zero) }
     var lastDraggedValue by remember { mutableStateOf(0f) }
@@ -98,65 +98,80 @@ internal fun RatingBar(
     val starSizeInPx = remember() {
         with(density) { size.toPx() }
     }
+    fun Modifier.isInteractive(isInteractive: Boolean) = if (isInteractive) {
+        this
+            .pointerInput(
+                Unit
+            ) {
+                //handling dragging events
+                detectHorizontalDragGestures(
+                    onDragEnd = {
+                        if (isIndicator || hideInactiveStars)
+                            return@detectHorizontalDragGestures
+                        if (onRatingChanged != null) {
+                            onRatingChanged(lastDraggedValue)
+                        }
+                    },
+                    onDragCancel = {
 
-    Row(modifier = modifier
-        .onSizeChanged { rowSize = it.toSize() }
-        .pointerInput(
-            Unit
-        ) {
-            //handling dragging events
-            detectHorizontalDragGestures(
-                onDragEnd = {
-                    if (isIndicator || hideInactiveStars)
-                        return@detectHorizontalDragGestures
-                    onRatingChanged(lastDraggedValue)
-                },
-                onDragCancel = {
+                    },
+                    onDragStart = {
 
-                },
-                onDragStart = {
+                    },
+                    onHorizontalDrag = { change, _ ->
+                        if (isIndicator || hideInactiveStars)
+                            return@detectHorizontalDragGestures
+                        change.consume()
+                        val dragX = change.position.x.coerceIn(-1f, rowSize.width)
+                        var calculatedStars =
+                            RatingBarUtils.calculateStars(
+                                dragX,
+                                paddingInPx,
+                                numOfStars, stepSize, starSizeInPx
+                            )
 
-                },
-                onHorizontalDrag = { change, _ ->
-                    if (isIndicator || hideInactiveStars)
-                        return@detectHorizontalDragGestures
-                    change.consume()
-                    val dragX = change.position.x.coerceIn(-1f, rowSize.width)
-                    var calculatedStars =
-                        RatingBarUtils.calculateStars(
-                            dragX,
-                            paddingInPx,
-                            numOfStars, stepSize, starSizeInPx
-                        )
-
-                    if (direction == LayoutDirection.Rtl)
-                        calculatedStars = numOfStars - calculatedStars
-                    onValueChange(calculatedStars)
-                    lastDraggedValue = calculatedStars
-                }
-            )
-        }
-        .pointerInteropFilter {
-            if (isIndicator || hideInactiveStars)
-                return@pointerInteropFilter false
-            //handling when click events
-            when (it.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    val dragX = it.x.coerceIn(-1f, rowSize.width)
-                    var calculatedStars =
-                        RatingBarUtils.calculateStars(
-                            dragX,
-                            paddingInPx,
-                            numOfStars, stepSize, starSizeInPx
-                        )
-                    if (direction == LayoutDirection.Rtl)
-                        calculatedStars = numOfStars - calculatedStars
-                    onValueChange(calculatedStars)
-                    onRatingChanged(calculatedStars)
-                }
+                        if (direction == LayoutDirection.Rtl)
+                            calculatedStars = numOfStars - calculatedStars
+                        if (onValueChange != null) {
+                            onValueChange(calculatedStars)
+                        }
+                        lastDraggedValue = calculatedStars
+                    }
+                )
             }
-            true
-        }) {
+            .pointerInteropFilter {
+                if (isIndicator || hideInactiveStars)
+                    return@pointerInteropFilter false
+                //handling when click events
+                when (it.action) {
+                    MotionEvent.ACTION_DOWN -> {
+                        val dragX = it.x.coerceIn(-1f, rowSize.width)
+                        var calculatedStars =
+                            RatingBarUtils.calculateStars(
+                                dragX,
+                                paddingInPx,
+                                numOfStars, stepSize, starSizeInPx
+                            )
+                        if (direction == LayoutDirection.Rtl)
+                            calculatedStars = numOfStars - calculatedStars
+                        if (onValueChange != null) {
+                            onValueChange(calculatedStars)
+                        }
+                        if (onRatingChanged != null) {
+                            onRatingChanged(calculatedStars)
+                        }
+                    }
+                }
+                true
+            }
+    } else { this }
+
+    Row(
+        modifier = modifier
+            .onSizeChanged { rowSize = it.toSize() }
+            .isInteractive((onValueChange != null && onRatingChanged != null)),
+    )
+    {
         ComposeStars(
             value,
             numOfStars,
@@ -181,8 +196,8 @@ fun RatingBar(
     stepSize: StepSize = StepSize.ONE,
     hideInactiveStars: Boolean = false,
     style: RatingBarStyle,
-    onValueChange: (Float) -> Unit,
-    onRatingChanged: (Float) -> Unit
+    onValueChange: ((Float) -> Unit)? = null,
+    onRatingChanged: ((Float) -> Unit)? = null
 ) {
     RatingBar(
         value = value,
@@ -213,8 +228,8 @@ fun RatingBar(
     hideInactiveStars: Boolean = false,
     painterEmpty: Painter,
     painterFilled: Painter,
-    onValueChange: (Float) -> Unit,
-    onRatingChanged: (Float) -> Unit
+    onValueChange: ((Float) -> Unit)? = null,
+    onRatingChanged: ((Float) -> Unit)? = null
 ) {
     RatingBar(
         value = value,
